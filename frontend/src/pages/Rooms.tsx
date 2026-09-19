@@ -1,5 +1,6 @@
 import { createSignal, onMount } from 'solid-js'
 import { For } from 'solid-js'
+import { A } from '@solidjs/router'
 import { api } from '../api/client'
 import type { Room, RoomStatus, Shed } from '../types'
 
@@ -157,9 +158,14 @@ export default function Rooms() {
                     <span class={statusBadge(r.status)}>{r.status}</span>
                   </td>
                   <td>
-                    <button type="button" class="btn ghost" onClick={() => remove(r.id)}>
-                      删除
-                    </button>
+                    <div class="row-actions">
+                      <A class="btn ghost" href={`/harvest-quotas?roomId=${r.id}`}>
+                        配额
+                      </A>
+                      <button type="button" class="btn ghost" onClick={() => remove(r.id)}>
+                        删除
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )}

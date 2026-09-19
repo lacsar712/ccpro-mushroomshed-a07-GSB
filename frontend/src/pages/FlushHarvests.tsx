@@ -75,7 +75,9 @@ export default function FlushHarvests() {
     <div>
       <header class="page-header">
         <h1>采收记录</h1>
-        <p class="muted">潮次、等级与重量；weightKg 须 &gt; 0</p>
+        <p class="muted">
+          潮次、等级与重量；weightKg 须 &gt; 0；按东八区自然日受分级配额限制，超额或未设配额返回 409
+        </p>
       </header>
       {error() && <div class="error">{error()}</div>}
 

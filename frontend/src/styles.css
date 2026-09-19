@@ -201,6 +201,12 @@ select {
   border: 1px solid var(--line);
 }
 
+.row-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .table-wrap {
   overflow: auto;
 }

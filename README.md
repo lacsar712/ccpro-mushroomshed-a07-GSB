@@ -47,13 +47,20 @@ docker compose up --build
 3. **Room 出菇室**：`shedId`、`roomCode`、`species`、`capacityBags`、`status(fruiting|idle|sanitize)`；同菇房 `roomCode` 唯一
 4. **ClimateLog 环境记录**：`roomId`、`recordedAt`、`tempC`、`humidityPct`、`co2Ppm`、`notes`；`humidityPct ∈ [1,100]`，否则 **400**
 5. **FlushHarvest 采收**：`roomId`、`harvestedAt`、`flushNo(≥1)`、`weightKg`、`grade(A|B|C)`、`operatorName`；`weightKg > 0`，否则 **400**
-6. **Dashboard**：`shedTotal`、`fruitingRoomCount`、`climateLast24h`、`harvestKgLast7d`
+6. **HarvestQuotaDay 采收配额**：`roomId`、`workDate`（东八区自然日）、`grade(A|B|C)`、`capKg(>0)`；同室同日同等级唯一（重复 **400**）
+7. **Dashboard**：`shedTotal`、`fruitingRoomCount`、`climateLast24h`、`harvestKgLast7d`
 
-各实体 API：`GET/POST` 列表与创建、`DELETE` 按 ID 删除。
+各实体 API：`GET/POST` 列表与创建、`DELETE` 按 ID 删除。配额接口为 `/api/harvest-quota-days`，列表回显 `usedKg` / `remainingKg`。
+
+## 采收配额规则与日切口径
+
+- **日切口径：东八区（UTC+8）自然日 00:00–24:00**。服务端把 `harvestedAt` 统一换算到 UTC+8 取日期作为 `workDate`；累计窗口即该自然日对应的 UTC 区间 `[前一日 16:00, 当日 16:00)`。**不使用 UTC 零点切日**（UTC 零点会把东八区当天 08:00 前的采收算进"昨天"，掏空当日额度）。库中时间列按 UTC 墙钟存储。
+- 新建 FlushHarvest 时，按 `harvestedAt` 的东八区自然日与 `grade` 累加当日 `weightKg`：**当日累计 + 本次 > capKg** 则返回 **409**，响应体回显当日累计（`usedKg`、`capKg`、`attemptKg`）。
+- **默认策略：无配额行即拒绝**。该室该东八区自然日该等级没有 HarvestQuotaDay 行时，采收返回 **409**，不放行、不兜底。需要采收必须先在「采收配额」页建对应配额行。
 
 ## 前端页面
 
-Login · Dashboard · Sheds · Rooms · ClimateLogs · FlushHarvests（侧边栏布局）
+Login · Dashboard · Sheds · Rooms · ClimateLogs · FlushHarvests · HarvestQuotas 采收配额（侧边栏布局；Rooms 行内「配额」可带 `roomId` 跳入）
 
 ## 本地开发（可选）
 

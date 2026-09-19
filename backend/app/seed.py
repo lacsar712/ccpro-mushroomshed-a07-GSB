@@ -4,6 +4,7 @@ from app.auth import hash_password
 from app.database import SessionLocal
 from app.models.climate_log import ClimateLog
 from app.models.flush_harvest import FlushHarvest
+from app.models.harvest_quota_day import HarvestQuotaDay
 from app.models.room import Room
 from app.models.shed import Shed
 from app.models.user import User
@@ -135,6 +136,20 @@ def seed() -> None:
                         grade="A",
                         operator_name="出菇员",
                     ),
+                ]
+            )
+            # 采收配额按东八区自然日挂到出菇室；覆盖今昨两日、A/B/C 三级，
+            # 让种子采收记录落在已设配额的日内，可直接演示超额 409。
+            today_cn = (now + timedelta(hours=8)).date()
+            yesterday_cn = today_cn - timedelta(days=1)
+            db.add_all(
+                [
+                    HarvestQuotaDay(room_id=r1.id, work_date=today_cn, grade="A", cap_kg=60.0),
+                    HarvestQuotaDay(room_id=r1.id, work_date=today_cn, grade="B", cap_kg=40.0),
+                    HarvestQuotaDay(room_id=r1.id, work_date=yesterday_cn, grade="A", cap_kg=60.0),
+                    HarvestQuotaDay(room_id=r1.id, work_date=yesterday_cn, grade="B", cap_kg=40.0),
+                    HarvestQuotaDay(room_id=r3.id, work_date=today_cn, grade="A", cap_kg=80.0),
+                    HarvestQuotaDay(room_id=r3.id, work_date=today_cn, grade="C", cap_kg=20.0),
                 ]
             )
             db.commit()

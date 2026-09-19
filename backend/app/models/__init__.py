@@ -3,5 +3,6 @@ from app.models.shed import Shed
 from app.models.room import Room
 from app.models.climate_log import ClimateLog
 from app.models.flush_harvest import FlushHarvest
+from app.models.harvest_quota_day import HarvestQuotaDay
 
-__all__ = ["User", "Shed", "Room", "ClimateLog", "FlushHarvest"]
+__all__ = ["User", "Shed", "Room", "ClimateLog", "FlushHarvest", "HarvestQuotaDay"]
