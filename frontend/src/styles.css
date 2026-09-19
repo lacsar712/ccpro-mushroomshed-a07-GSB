@@ -357,3 +357,36 @@ th {
     grid-column: auto;
   }
 }
+
+/* 采收配额相关 */
+.quota-full {
+  color: #c0392b;
+  font-weight: 600;
+}
+
+.quota-conflict {
+  margin: 12px 0;
+  border-left: 4px solid #c0392b;
+}
+
+.quota-conflict-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #c0392b;
+}
+
+.quota-echo {
+  margin: 8px 0;
+  border-collapse: collapse;
+}
+
+.quota-echo th,
+.quota-echo td {
+  padding: 2px 12px 2px 0;
+  text-align: left;
+  font-weight: 400;
+}
+
+.quota-echo th {
+  color: var(--text-muted, #6b7280);
+}

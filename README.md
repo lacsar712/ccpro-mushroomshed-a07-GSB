@@ -47,13 +47,25 @@ docker compose up --build
 3. **Room 出菇室**：`shedId`、`roomCode`、`species`、`capacityBags`、`status(fruiting|idle|sanitize)`；同菇房 `roomCode` 唯一
 4. **ClimateLog 环境记录**：`roomId`、`recordedAt`、`tempC`、`humidityPct`、`co2Ppm`、`notes`；`humidityPct ∈ [1,100]`，否则 **400**
 5. **FlushHarvest 采收**：`roomId`、`harvestedAt`、`flushNo(≥1)`、`weightKg`、`grade(A|B|C)`、`operatorName`；`weightKg > 0`，否则 **400**
-6. **Dashboard**：`shedTotal`、`fruitingRoomCount`、`climateLast24h`、`harvestKgLast7d`
+6. **HarvestQuotaDay 采收配额**：`roomId`、`workDate`、`grade(A|B|C)`、`capKg(>0)`；同出菇室同日同 grade 唯一（重复 **409**）
+7. **Dashboard**：`shedTotal`、`fruitingRoomCount`、`climateLast24h`、`harvestKgLast7d`
 
 各实体 API：`GET/POST` 列表与创建、`DELETE` 按 ID 删除。
 
+### 采收配额与日切口径
+
+- **日切固定按东八区（UTC+8）自然日**：采收记录按 `harvestedAt` 换算到 UTC+8 后归属当日（例：UTC `2026-09-19T17:30Z` → 东八区 `2026-09-20 01:30`，计入 **9 月 20 日**）。不使用 UTC 零点切日，避免把北京时间凌晨的采收掏空到前一天。
+- 新建采收时，按「出菇室 + 东八区自然日 + grade」累加当日全部 `weightKg`：
+  - **无配额行：拒绝采收，返回 409**（`reason: "quota_missing"`）。这是唯一默认策略，不存在“无配额即不限量”。
+  - 累计 + 本次 > `capKg`：拒绝采收，返回 409（`reason: "quota_exceeded"`），响应回显 `capKg / usedKg / incomingKg / projectedKg / remainingKg / workDate / grade`，前端在采收页直接展示当日累计。
+  - 未超上限：正常入库 **201**。
+- 配额需提前在「采收配额」页（或 `POST /api/harvest-quotas`）配置；`GET /api/harvest-quotas?roomId=&workDate=` 返回每行的 `usedKg`、`remainingKg`。
+- 配额与采收重量内部统一以 UTC 时间点比较，仅“归属哪一天”按东八区计算；并发提交在 MySQL 下对配额行加行锁（`SELECT ... FOR UPDATE`）。
+- seed 数据为出菇室 R-01 配置了当日 A 级与前一日 B 级配额（至少两级），V-01 另有历史 A 级配额。
+
 ## 前端页面
 
-Login · Dashboard · Sheds · Rooms · ClimateLogs · FlushHarvests（侧边栏布局）
+Login · Dashboard · Sheds · Rooms · ClimateLogs · FlushHarvests · HarvestQuotas（侧边栏布局；Rooms 行内「配额」按钮可跳入该室配额）
 
 ## 本地开发（可选）
 

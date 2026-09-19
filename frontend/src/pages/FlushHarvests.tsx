@@ -1,7 +1,19 @@
 import { createSignal, onMount } from 'solid-js'
 import { For } from 'solid-js'
-import { api } from '../api/client'
+import { ApiError, api } from '../api/client'
 import type { FlushHarvest, HarvestGrade, Room } from '../types'
+
+interface QuotaConflict {
+  reason?: string
+  roomId?: number
+  workDate?: string
+  grade?: string
+  capKg?: number
+  usedKg?: number
+  incomingKg?: number
+  projectedKg?: number
+  remainingKg?: number
+}
 
 const grades: HarvestGrade[] = ['A', 'B', 'C']
 
@@ -25,6 +37,7 @@ export default function FlushHarvests() {
   const [rooms, setRooms] = createSignal<Room[]>([])
   const [form, setForm] = createSignal({ ...empty })
   const [error, setError] = createSignal('')
+  const [conflict, setConflict] = createSignal<QuotaConflict | null>(null)
 
   async function load() {
     const [harvests, roomList] = await Promise.all([
@@ -42,6 +55,7 @@ export default function FlushHarvests() {
   async function onSubmit(e: Event) {
     e.preventDefault()
     setError('')
+    setConflict(null)
     try {
       await api('/api/flush-harvests', {
         method: 'POST',
@@ -57,6 +71,9 @@ export default function FlushHarvests() {
       setForm({ ...empty, harvestedAt: toLocalInput() })
       await load()
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setConflict((err.data ?? null) as QuotaConflict | null)
+      }
       setError(err instanceof Error ? err.message : '保存失败')
     }
   }
@@ -75,9 +92,39 @@ export default function FlushHarvests() {
     <div>
       <header class="page-header">
         <h1>采收记录</h1>
-        <p class="muted">潮次、等级与重量；weightKg 须 &gt; 0</p>
+        <p class="muted">
+          潮次、等级与重量；weightKg 须 &gt; 0；按东八区自然日受当日等级配额约束
+        </p>
       </header>
       {error() && <div class="error">{error()}</div>}
+      {conflict() && (
+        <div class="panel quota-conflict">
+          <div class="quota-conflict-title">
+            {conflict()?.reason === 'quota_missing' ? '当日无配额行' : '超出当日采收配额'}
+          </div>
+          <div class="muted">
+            {conflict()?.reason === 'quota_missing'
+              ? '默认策略为拒绝采收：请先在「采收配额」页为该出菇室当日该等级配置配额。'
+              : '按东八区（UTC+8）自然日累计，本次入库将超过 capKg，已拒绝。'}
+          </div>
+          {conflict()?.reason === 'quota_exceeded' && (
+            <table class="quota-echo">
+              <tbody>
+                <tr><th>工作日</th><td>{conflict()?.workDate}</td></tr>
+                <tr><th>等级</th><td>{conflict()?.grade}</td></tr>
+                <tr><th>当日累计</th><td>{conflict()?.usedKg} kg</td></tr>
+                <tr><th>本次重量</th><td>{conflict()?.incomingKg} kg</td></tr>
+                <tr><th>预计合计</th><td>{conflict()?.projectedKg} kg</td></tr>
+                <tr><th>配额上限</th><td>{conflict()?.capKg} kg</td></tr>
+                <tr><th>剩余额度</th><td>{conflict()?.remainingKg} kg</td></tr>
+              </tbody>
+            </table>
+          )}
+          <a class="btn ghost" href={`/harvest-quotas?roomId=${conflict()?.roomId ?? ''}`}>
+            前往配置/查看配额
+          </a>
+        </div>
+      )}
 
       <form class="panel form-grid" onSubmit={onSubmit}>
         <label>

@@ -37,6 +37,16 @@ export interface FlushHarvest {
   operatorName: string
 }
 
+export interface HarvestQuotaDay {
+  id: number
+  roomId: number
+  workDate: string
+  grade: HarvestGrade
+  capKg: number
+  usedKg?: number
+  remainingKg?: number
+}
+
 export interface DashboardStats {
   shedTotal: number
   fruitingRoomCount: number

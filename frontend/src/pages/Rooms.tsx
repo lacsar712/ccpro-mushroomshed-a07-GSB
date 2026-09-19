@@ -1,3 +1,4 @@
+import { A } from '@solidjs/router'
 import { createSignal, onMount } from 'solid-js'
 import { For } from 'solid-js'
 import { api } from '../api/client'
@@ -141,7 +142,7 @@ export default function Rooms() {
               <th>品种</th>
               <th>容量</th>
               <th>状态</th>
-              <th />
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -157,6 +158,9 @@ export default function Rooms() {
                     <span class={statusBadge(r.status)}>{r.status}</span>
                   </td>
                   <td>
+                    <A class="btn ghost" href={`/harvest-quotas?roomId=${r.id}`}>
+                      配额
+                    </A>
                     <button type="button" class="btn ghost" onClick={() => remove(r.id)}>
                       删除
                     </button>

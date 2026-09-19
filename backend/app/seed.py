@@ -4,9 +4,11 @@ from app.auth import hash_password
 from app.database import SessionLocal
 from app.models.climate_log import ClimateLog
 from app.models.flush_harvest import FlushHarvest
+from app.models.harvest_quota_day import HarvestQuotaDay
 from app.models.room import Room
 from app.models.shed import Shed
 from app.models.user import User
+from app.utils import cn_date_of
 
 
 def seed() -> None:
@@ -77,6 +79,30 @@ def seed() -> None:
             db.flush()
 
             now = datetime.now(timezone.utc)
+            h1 = FlushHarvest(
+                room_id=r1.id,
+                harvested_at=now - timedelta(hours=6),
+                flush_no=2,
+                weight_kg=42.5,
+                grade="A",
+                operator_name="出菇员",
+            )
+            h2 = FlushHarvest(
+                room_id=r1.id,
+                harvested_at=now - timedelta(days=1),
+                flush_no=1,
+                weight_kg=38.0,
+                grade="B",
+                operator_name="场长",
+            )
+            h3 = FlushHarvest(
+                room_id=r3.id,
+                harvested_at=now - timedelta(days=3),
+                flush_no=1,
+                weight_kg=55.2,
+                grade="A",
+                operator_name="出菇员",
+            )
             db.add_all(
                 [
                     ClimateLog(
@@ -111,32 +137,42 @@ def seed() -> None:
                         co2_ppm=690.0,
                         notes=None,
                     ),
-                    FlushHarvest(
-                        room_id=r1.id,
-                        harvested_at=now - timedelta(hours=6),
-                        flush_no=2,
-                        weight_kg=42.5,
-                        grade="A",
-                        operator_name="出菇员",
-                    ),
-                    FlushHarvest(
-                        room_id=r1.id,
-                        harvested_at=now - timedelta(days=1),
-                        flush_no=1,
-                        weight_kg=38.0,
-                        grade="B",
-                        operator_name="场长",
-                    ),
-                    FlushHarvest(
-                        room_id=r3.id,
-                        harvested_at=now - timedelta(days=3),
-                        flush_no=1,
-                        weight_kg=55.2,
-                        grade="A",
-                        operator_name="出菇员",
-                    ),
+                    h1,
+                    h2,
+                    h3,
                 ]
             )
+            db.flush()
+
+            # 采收配额按 harvestedAt 的东八区自然日发放；至少覆盖 A/B 两级。
+            # cap 略高于种子采收量，页面上可见已用/剩余；当日 A 级留出可继续录收的余量。
+            today_cn = cn_date_of(now)
+            quota_rows = [
+                HarvestQuotaDay(
+                    room_id=r1.id,
+                    work_date=cn_date_of(h1.harvested_at),
+                    grade="A",
+                    cap_kg=80.0,
+                ),
+                HarvestQuotaDay(
+                    room_id=r1.id,
+                    work_date=cn_date_of(h2.harvested_at),
+                    grade="B",
+                    cap_kg=60.0,
+                ),
+                HarvestQuotaDay(
+                    room_id=r3.id,
+                    work_date=cn_date_of(h3.harvested_at),
+                    grade="A",
+                    cap_kg=70.0,
+                ),
+            ]
+            # 今日（东八区自然日）若与历史采收不同日，补一条今日 A 级配额方便直接试录
+            if today_cn not in {q.work_date for q in quota_rows if q.room_id == r1.id}:
+                quota_rows.append(
+                    HarvestQuotaDay(room_id=r1.id, work_date=today_cn, grade="A", cap_kg=50.0)
+                )
+            db.add_all(quota_rows)
             db.commit()
             print("Seed data inserted.")
         else:
